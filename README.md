@@ -33,7 +33,7 @@ tail -f /var/log/fail2ban.log
 nft list ruleset
 ```
 
-手动解封所有监狱中的IP地址：
+手动解封所有fail2ban jail中的IP地址：
 
 ```bash
 sudo fail2ban-client unban --all
