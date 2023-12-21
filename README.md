@@ -33,6 +33,18 @@ tail -f /var/log/fail2ban.log
 nft list ruleset
 ```
 
+手动解封所有监狱中的IP地址：
+
+```bash
+sudo fail2ban-client unban --all
+```
+
+只针对解封单独的地址：
+```bash
+sudo fail2ban-client unban <ip-address>
+```
+
+fail2ban-client 命令还有许多其他选项，提供了很多可能性和灵活性。详细了解它们，[look here](https://manpages.debian.org/testing/fail2ban/fail2ban-client.1.en.html)
 
 ###References:
 
