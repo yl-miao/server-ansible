@@ -20,7 +20,7 @@ ansible-playbook server.yaml
 or
 
 ```bash
-ansible-playbook server.yml -e "custom_block_ports=[12345, 23456]"
+ansible-playbook server.yaml -e "custom_block_ports=[12345, 23456]"
 ```
 
 
