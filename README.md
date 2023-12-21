@@ -24,7 +24,7 @@ ansible-playbook server.yml -e "custom_block_ports=[12345, 23456]"
 ```
 
 
-###检查:
+### 2.检查:
 
 ```bash
 #检查fail2ban日志:
