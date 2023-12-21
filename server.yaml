@@ -1,0 +1,153 @@
+---
+
+- name: enable bbr and update packages
+  hosts: servers
+  remote_user: root
+  gather_facts: no
+  tasks:
+    - name: set net.core.default_qdisc
+      sysctl:
+        name: net.core.default_qdisc
+        value: fq
+        state: present
+
+    - name: set net.ipv4.tcp_congestion_control
+      sysctl:
+        name: net.ipv4.tcp_congestion_control
+        value: bbr
+        state: present
+        reload: yes
+
+    - name: update packages
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: check if a reboot is required
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+
+    - name: reboot if required
+      reboot:
+      when: reboot_required_file.stat.exists == true
+      ignore_errors: yes
+
+- name: install softwares
+  hosts: servers
+  remote_user: root
+  gather_facts: no
+  tasks:
+    - name: install softwares
+      apt:
+        name:
+          - wget
+          - debian-keyring
+          - debian-archive-keyring
+          - apt-transport-https
+          - curl
+          - locate
+          - htop
+          - rsync
+          - fail2ban
+          - nftables
+          - htop
+        state: latest
+
+    - name: Ensure nftables is enabled and started
+      systemd:
+        name: nftables
+        enabled: yes
+        state: started
+
+    - name: Check if Caddy GPG key is already present
+      stat:
+        path: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+      register: caddy_gpg_key
+
+    - name: Update GPG key for Caddy v2
+      shell: curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+      when: not caddy_gpg_key.stat.exists
+
+    - name: update apt source for caddy v2
+      shell: curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+
+    - name: install caddy v2 with apt
+      apt:
+        name: caddy
+        state: latest
+        update_cache: yes
+
+- name: Configure nftables rules
+  hosts: servers
+  remote_user: root
+  gather_facts: no
+  become: yes
+  vars:
+    custom_block_ports: [14444, 14445]  # 示例自定义端口列表
+
+  tasks:
+    - name: Allow local access to database and custom ports
+      shell: |
+        nft add rule inet filter input ip saddr 127.0.0.1 tcp dport {3306, 5432, 27017, 9092, {{ custom_block_ports | join(', ') }} } accept
+
+    - name: Block external access to database and custom ports
+      shell: |
+        nft add rule inet filter input tcp dport {3306, 5432, 27017, 9092, {{ custom_block_ports | join(', ') }} } drop
+
+    - name: Save nftables configuration
+      shell: nft list ruleset > /etc/nftables.conf
+
+
+- name: Configure and restart fail2ban
+  hosts: servers
+  remote_user: root
+  gather_facts: no
+  become: yes
+  tasks:
+    - name: Rename /etc/fail2ban/jail.conf to /etc/fail2ban/jail.local
+      command: mv /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+      args:
+        creates: /etc/fail2ban/jail.local
+
+    - name: Copy jail.conf.j2 to remote /etc/fail2ban/jail.conf
+      template:
+        src: templates/jail.conf.j2
+        dest: /etc/fail2ban/jail.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Restart fail2ban service
+      systemd:
+        name: fail2ban
+        state: restarted
+
+# - name: ensure that firewalls are disabled
+#   hosts: servers
+#   remote_user: root
+#   gather_facts: no
+#   tasks:
+#     - name: ensure firewalld is stopped and disabled
+#       systemd:
+#         name: firewalld
+#         state: stopped
+#         enabled: yes
+#       ignore_errors: yes
+
+#     - name: ensure that iptables and/or ufw is disabled
+#       shell: service iptables stop;chkconfig iptables off;ufw disable
+#       ignore_errors: yes
+
+#     - name: disable iptables at reboot
+#       shell: iptables -P INPUT ACCEPT;
+#         iptables -P FORWARD ACCEPT;
+#         iptables -P OUTPUT ACCEPT;
+#         iptables -F;
+#         apt purge netfilter-persistent;
+#         rm -rf /etc/iptables
+#       ignore_errors: yes
+
+#     - name: final reboot
+#       reboot:
+#       ignore_errors: yes

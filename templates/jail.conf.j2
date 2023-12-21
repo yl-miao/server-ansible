@@ -1,0 +1,20 @@
+[sshd]
+
+# enabled – Determines if the jail is active or not.
+enabled = true
+# port – Specifies the port(s) you want to monitor. Accepts any port number or service name, e.g., “ssh,” “22,” “2200,” etc.
+port    = ssh
+# backend –  Specifies the backend used to get file modification. Since all modern Linux systems rely on systemd’s logging service, we specify it as our backend.
+backend = systemd
+# maxretry – The number of failed attempts from an IP before it is banned.
+maxretry = 3
+# findtime – The timeframe (in seconds) during which “maxretry” failed logins will lead to a ban. We have specified 300 seconds, i.e., 5 minutes.
+findtime = 300
+# bantime – The duration (in seconds) an IP should stay banned. In our case, we have set 3600 seconds, which means that in the next hour, any subsequent requests (not just to the SSH port) from this IP address will be blocked.
+bantime = 3600
+# ignoreip – Allows you to whitelist IP addresses that should be ignored. This ensures that given IP addresses, even if they exceed the number of failed attempts specified in “maxretry,” will not be blocked.
+ignoreip = 127.0.0.1
+# use nftables instead of iptables
+banaction = nftables
+# use log file
+logpath = /var/log/auth.log
