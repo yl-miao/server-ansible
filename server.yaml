@@ -1,5 +1,4 @@
 ---
-
 - name: enable bbr and update packages
   hosts: servers
   remote_user: root
@@ -33,6 +32,7 @@
       when: reboot_required_file.stat.exists == true
       ignore_errors: yes
 
+
 - name: install softwares
   hosts: servers
   remote_user: root
@@ -51,7 +51,10 @@
           - rsync
           - fail2ban
           - nftables
-          - htop
+          - nano
+          - build-essential
+          - cmake
+          - gdb
         state: latest
 
     - name: Ensure nftables is enabled and started
@@ -77,6 +80,149 @@
         name: caddy
         state: latest
         update_cache: yes
+
+
+- name: Install Docker
+  hosts: servers
+  gather_facts: yes
+  become: yes  # 使用 sudo
+  vars:
+    arch_mapping:  # Map ansible architecture {{ ansible_architecture }} names to Docker's architecture names
+      x86_64: amd64
+      aarch64: arm64
+  tasks:
+    - name: Uninstall unofficial packages
+      apt:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - docker.io
+        - docker-doc
+        - docker-compose
+        - podman-docker
+        - containerd
+        - runc
+
+    - name: Update apt cache and install necessary packages
+      apt:
+        update_cache: yes
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+
+    - name: Ensure /etc/apt/keyrings directory exists
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Add Docker's official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/{{ ansible_distribution|lower }}/gpg
+        state: present
+        keyring: /etc/apt/keyrings/docker.gpg
+
+    - name: Print architecture variables
+      debug:
+        msg: "Architecture: {{ ansible_architecture }}, Codename: {{ ansible_lsb.codename }}"
+
+    - name: Add Docker repository
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [arch={{ arch_mapping[ansible_architecture] | default(ansible_architecture) }}
+          signed-by=/etc/apt/keyrings/docker.gpg]
+          https://download.docker.com/linux/{{ ansible_distribution|lower }} {{ ansible_lsb.codename }} stable
+        filename: docker
+        state: present
+
+    - name: Update apt cache after adding Docker repository
+      apt:
+        update_cache: yes
+
+    - name: Install Docker CE and related packages
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: latest
+        update_cache: yes
+
+    - name: Add Docker group
+      group:
+        name: docker
+        state: present
+
+    - name: Add user to Docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: true
+
+    - name: Enable and start Docker services
+      systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop:
+        - docker.service
+        - containerd.service
+
+
+# - name: Install Miniconda
+#   hosts: servers
+#   gather_facts: yes
+#   roles:
+#     - andrewrothstein.miniconda
+
+
+- name: Install Miniconda3
+  hosts: servers  # 替换为您的目标主机或主机组
+  become: yes  # 使用 sudo 权限
+  gather_facts: yes  # 收集目标主机信息
+  vars:
+    miniconda_base_url: "https://repo.anaconda.com/miniconda"
+    miniconda_installer: "Miniconda3-latest-Linux-{{ ansible_architecture }}.sh"
+  tasks:
+    - name: Print the architecture of the target host
+      debug:
+        var: ansible_architecture
+
+    - name: Download Miniconda3 installer for the respective architecture
+      get_url:
+        url: "{{ miniconda_base_url }}/{{ miniconda_installer }}"
+        dest: "/tmp/{{ miniconda_installer }}"
+        mode: 0755
+
+    - name: Install Miniconda3
+      shell: bash /tmp/{{ miniconda_installer }} -b -p /opt/miniconda3
+      args:
+        creates: /opt/miniconda3
+
+    - name: Set miniconda3 path to bashrc
+      lineinfile:
+        path: ~/.bashrc
+        line: 'export PATH="/opt/miniconda3/bin:$PATH"'
+        create: yes
+
+    - name: Configure Miniconda to not activate base environment on start
+      shell: /opt/miniconda3/bin/conda config --set auto_activate_base false
+
+
+- name: Install nvm
+  hosts: servers
+  become: yes
+  tasks:
+    - name: Download and install nvm
+      ansible.builtin.shell: >
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+      args:
+        creates: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+
 
 - name: Configure nftables rules
   hosts: servers
@@ -122,6 +268,16 @@
       systemd:
         name: fail2ban
         state: restarted
+
+- name: Final reboot
+  hosts: servers
+  remote_user: root
+  gather_facts: no
+  become: yes
+  tasks:
+  - name: final reboot
+    reboot:
+      ignore_errors: yes
 
 # - name: ensure that firewalls are disabled
 #   hosts: servers

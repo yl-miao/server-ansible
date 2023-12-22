@@ -5,15 +5,18 @@ The Ansible Playbook to configure new servers
 
 It does the following:
 
-* use BBR
+* enable BBR
 * update packages
-* install Caddy V2
+* install Caddy V2, NVM, Minconda3, Docker CE
 * install and configure nftables and fail2ban
 * block the ports 3306, 5432, 27017, and custom ports
+
+**目前只支持Debian/Ubuntu (x86_64/arm64)**
 
 ### 1. Run the playbook:
 
 ```bash
+# ansible-galaxy role install andrewrothstein.miniconda
 ansible-playbook server.yaml
 ```
 
@@ -49,3 +52,7 @@ fail2ban-client 命令还有许多其他选项，提供了很多可能性和灵�
 ### 3.References:
 
 https://linuxiac.com/how-to-protect-ssh-with-fail2ban/
+
+https://docs.docker.com/engine/install/debian/
+
+https://medium.com/@GarisSpace/how-to-install-docker-using-ansible-01a674086f8c
