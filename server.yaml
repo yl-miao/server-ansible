@@ -1,5 +1,5 @@
 ---
-- name: enable bbr and update packages
+- name: enable BBR and update packages
   hosts: servers
   remote_user: root
   gather_facts: no
@@ -181,9 +181,9 @@
 
 
 - name: Install Miniconda3
-  hosts: servers  # 替换为您的目标主机或主机组
-  become: yes  # 使用 sudo 权限
-  gather_facts: yes  # 收集目标主机信息
+  hosts: servers
+  become: yes
+  gather_facts: yes
   vars:
     miniconda_base_url: "https://repo.anaconda.com/miniconda"
     miniconda_installer: "Miniconda3-latest-Linux-{{ ansible_architecture }}.sh"
