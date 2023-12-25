@@ -277,7 +277,6 @@
   tasks:
   - name: final reboot
     reboot:
-      ignore_errors: yes
 
 # - name: ensure that firewalls are disabled
 #   hosts: servers
