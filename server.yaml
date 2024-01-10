@@ -110,7 +110,7 @@
           - cmake
           - gdb
           - tmux
-          - netstat
+          - net-tools
           - lsof
         state: latest
 
