@@ -1,17 +1,20 @@
 # server-ansible
 The Ansible Playbook to configure new servers
 
+** 目前只支持Debian/Ubuntu (amd64/arm64) ! **
+
+tested on Debian 12 (amd64) and Ubuntu 22.04 (arm64)
+
 ### 0. Overview
 
 It does the following:
 
 * enable BBR
-* update packages
+* update and install common packages
 * install Caddy V2, FVM, Minconda3, Docker CE
 * install and configure nftables and fail2ban (ufw and iptables will be removed if they exist)
 * block the ports 3306, 5432, 27017, and custom ports
 
-**目前只支持Debian/Ubuntu (x86_64/arm64)**
 
 ### 1. Run the playbook:
 
