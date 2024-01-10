@@ -32,6 +32,7 @@
       when: reboot_required_file.stat.exists == true
       ignore_errors: yes
 
+
 - name: Disable and Remove Firewall
   hosts: your_server_group
   become: yes
@@ -82,7 +83,7 @@
 - name: install softwares
   hosts: servers
   remote_user: root
-  gather_facts: no
+  # gather_facts: no
   tasks:
     - name: install softwares
       apt:
@@ -92,6 +93,12 @@
           - debian-archive-keyring
           - apt-transport-https
           - curl
+          - git
+          - mercurial
+          - binutils
+          - make
+          - bison
+          - gcc
           - unzip
           - locate
           - htop
@@ -229,6 +236,7 @@
         - docker.service
         - containerd.service
 
+
 - name: Install Miniconda3
   hosts: servers
   become: yes
@@ -289,6 +297,40 @@
         create: yes
       # become_user: your_normal_user # 如果需要的话，切换到普通用户
 
+
+- name: Install GVM (Go Version Manager)
+  hosts: servers
+  become: yes
+  tasks:
+    - name: Install Bison
+      apt:
+        name: bison
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install GVM
+      shell: |
+        curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer | bash
+      args:
+        executable: /bin/bash
+      environment:
+        SHELL: /bin/bash
+
+
+- name: Install Rustup (Rust Toolchain Installer)
+  hosts: servers
+  become: yes
+  tasks:
+    - name: Install Rustup
+      shell: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      args:
+        executable: /bin/bash
+      environment:
+        USER: "{{ ansible_user }}"
+        HOME: "{{ ansible_env.HOME }}"
+
+
 - name: Configure nftables rules
   hosts: servers
   remote_user: root
@@ -333,6 +375,7 @@
       systemd:
         name: fail2ban
         state: restarted
+
 
 - name: Final reboot
   hosts: servers
