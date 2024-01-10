@@ -8,7 +8,7 @@ It does the following:
 * enable BBR
 * update packages
 * install Caddy V2, FVM, Minconda3, Docker CE
-* install and configure nftables and fail2ban
+* install and configure nftables and fail2ban (ufw and iptables will be removed if they exist)
 * block the ports 3306, 5432, 27017, and custom ports
 
 **目前只支持Debian/Ubuntu (x86_64/arm64)**
