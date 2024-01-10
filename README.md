@@ -7,7 +7,7 @@ It does the following:
 
 * enable BBR
 * update packages
-* install Caddy V2, NVM, Minconda3, Docker CE
+* install Caddy V2, FVM, Minconda3, Docker CE
 * install and configure nftables and fail2ban
 * block the ports 3306, 5432, 27017, and custom ports
 
