@@ -32,6 +32,52 @@
       when: reboot_required_file.stat.exists == true
       ignore_errors: yes
 
+- name: Disable and Remove Firewall
+  hosts: your_server_group
+  become: yes
+  vars:
+    packages_to_remove: ["ufw", "iptables"]
+
+  tasks:
+    - name: Check if UFW is installed
+      command: which ufw
+      register: ufw_installed
+      ignore_errors: true
+
+    - name: Disable and stop UFW
+      command: ufw disable
+      when: ufw_installed.rc == 0
+
+    - name: Stop UFW service
+      systemd:
+        name: ufw
+        state: stopped
+        enabled: no
+      when: ufw_installed.rc == 0
+
+    - name: Flush iptables rules
+      iptables:
+        flush: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Check if iptables is installed
+      command: which iptables
+      register: iptables_installed
+      ignore_errors: true
+
+    - name: Stop iptables service
+      systemd:
+        name: iptables
+        state: stopped
+        enabled: no
+      when: iptables_installed.rc == 0
+
+    - name: Uninstall UFW and iptables packages
+      apt:
+        name: "{{ packages_to_remove }}"
+        state: absent
+        purge: yes
+      when: ufw_installed.rc == 0 or iptables_installed.rc == 0
 
 - name: install softwares
   hosts: servers
@@ -57,6 +103,8 @@
           - cmake
           - gdb
           - tmux
+          - netstat
+          - lsof
         state: latest
 
     - name: Ensure nftables is enabled and started
@@ -303,32 +351,3 @@
   tasks:
   - name: final reboot
     reboot:
-
-# - name: ensure that firewalls are disabled
-#   hosts: servers
-#   remote_user: root
-#   gather_facts: no
-#   tasks:
-#     - name: ensure firewalld is stopped and disabled
-#       systemd:
-#         name: firewalld
-#         state: stopped
-#         enabled: yes
-#       ignore_errors: yes
-
-#     - name: ensure that iptables and/or ufw is disabled
-#       shell: service iptables stop;chkconfig iptables off;ufw disable
-#       ignore_errors: yes
-
-#     - name: disable iptables at reboot
-#       shell: iptables -P INPUT ACCEPT;
-#         iptables -P FORWARD ACCEPT;
-#         iptables -P OUTPUT ACCEPT;
-#         iptables -F;
-#         apt purge netfilter-persistent;
-#         rm -rf /etc/iptables
-#       ignore_errors: yes
-
-#     - name: final reboot
-#       reboot:
-#       ignore_errors: yes
