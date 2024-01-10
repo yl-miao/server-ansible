@@ -11,7 +11,7 @@ It does the following:
 
 * enable BBR
 * update and install common packages
-* install Caddy V2 (as web server), Rustup, GVM (go version manager), FVM (nodejs version manager), Minconda3, Docker CE
+* install Caddy V2 (as Web Server), [rustup](https://www.rust-lang.org/tools/install), [gvm](https://github.com/moovweb/gvm) (Go version manager), [fnm](https://github.com/Schniz/fnm) (Node.js version manager), Minconda3, Docker CE
 * install and configure nftables and fail2ban (ufw and iptables will be removed if they exist)
 * block the ports 3306, 5432, 27017, and custom ports
 
