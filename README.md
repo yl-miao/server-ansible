@@ -1,7 +1,7 @@
 # server-ansible
 The Ansible Playbook to configure new servers
 
-** 目前只支持Debian/Ubuntu (amd64/arm64) ! **
+**目前只支持Debian/Ubuntu (amd64/arm64) !**
 
 tested on Debian 12 (amd64) and Ubuntu 22.04 (arm64)
 
