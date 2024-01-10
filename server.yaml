@@ -46,6 +46,7 @@
           - debian-archive-keyring
           - apt-transport-https
           - curl
+          - unzip
           - locate
           - htop
           - rsync
@@ -220,16 +221,33 @@
       shell: /opt/miniconda3/bin/conda config --set auto_activate_base false
 
 
-- name: Install nvm
+# - name: Install nvm
+#   hosts: servers
+#   become: yes
+#   tasks:
+#     - name: Download and install nvm
+#       ansible.builtin.shell: >
+#         curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+#       args:
+#         creates: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+
+- name: Install fnm (Fast Node Manager)
   hosts: servers
   become: yes
   tasks:
-    - name: Download and install nvm
-      ansible.builtin.shell: >
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    - name: Download and install fnm
+      shell: |
+        curl -fsSL https://github.com/Schniz/fnm/raw/master/.ci/install.sh | bash
       args:
-        creates: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+        creates: /usr/local/bin/fnm
+      # become_user: your_normal_user # 如果需要的话，切换到普通用户
 
+    - name: Add fnm init script to shell configuration
+      lineinfile:
+        path: "{{ ansible_env.HOME }}/.bashrc"
+        line: 'eval "$(fnm env)"'
+        create: yes
+      # become_user: your_normal_user # 如果需要的话，切换到普通用户
 
 - name: Configure nftables rules
   hosts: servers
