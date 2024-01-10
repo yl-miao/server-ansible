@@ -229,14 +229,6 @@
         - docker.service
         - containerd.service
 
-
-# - name: Install Miniconda
-#   hosts: servers
-#   gather_facts: yes
-#   roles:
-#     - andrewrothstein.miniconda
-
-
 - name: Install Miniconda3
   hosts: servers
   become: yes
@@ -268,7 +260,6 @@
 
     - name: Configure Miniconda to not activate base environment on start
       shell: /opt/miniconda3/bin/conda config --set auto_activate_base false
-
 
 # - name: Install nvm
 #   hosts: servers
