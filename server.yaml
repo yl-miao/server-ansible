@@ -89,10 +89,10 @@
       apt:
         name:
           - wget
+          - curl
           - debian-keyring
           - debian-archive-keyring
           - apt-transport-https
-          - curl
           - git
           - mercurial
           - binutils
@@ -103,6 +103,8 @@
           - locate
           - htop
           - rsync
+          - rclone
+          - lrzsz
           - fail2ban
           - nftables
           - nano
