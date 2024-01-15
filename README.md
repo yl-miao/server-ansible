@@ -10,7 +10,7 @@ tested on Debian 12 (amd64) and Ubuntu 22.04 (arm64)
 It does the following:
 
 * enable BBR
-* update and install common packages
+* update and install common packages (use fnm instead of nvm, use nftables instead of iptables, use iproute2 instead of net-tools)
 * install Caddy V2 (as Web Server), [rustup](https://www.rust-lang.org/tools/install), [gvm](https://github.com/moovweb/gvm) (Go version manager), [fnm](https://github.com/Schniz/fnm) (Node.js version manager), Minconda3, Docker CE
 * install and configure nftables and fail2ban (ufw and iptables will be removed if they exist)
 * block the ports 3306, 5432, 27017, and custom ports
