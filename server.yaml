@@ -96,9 +96,7 @@
           - git
           - mercurial
           - binutils
-          - make
           - bison
-          - gcc
           - unzip
           - locate
           - htop
@@ -112,7 +110,8 @@
           - cmake
           - gdb
           - tmux
-          - net-tools
+          #- net-tools
+          - iproute2
           - lsof
         state: latest
 
