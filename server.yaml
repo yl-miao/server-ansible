@@ -113,6 +113,7 @@
           #- net-tools
           - iproute2
           - lsof
+          - vim
         state: latest
 
     - name: Ensure nftables is enabled and started
