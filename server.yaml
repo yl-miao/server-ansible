@@ -32,7 +32,6 @@
       when: reboot_required_file.stat.exists == true
       ignore_errors: yes
 
-
 - name: Disable and Remove Firewall
   hosts: your_server_group
   become: yes
@@ -140,13 +139,12 @@
         state: latest
         update_cache: yes
 
-
 - name: Install Docker
   hosts: servers
   gather_facts: yes
-  become: yes  # 使用 sudo
+  become: yes # 使用 sudo
   vars:
-    arch_mapping:  # Map ansible architecture {{ ansible_architecture }} names to Docker's architecture names
+    arch_mapping: # Map ansible architecture {{ ansible_architecture }} names to Docker's architecture names
       x86_64: amd64
       aarch64: arm64
   tasks:
@@ -175,7 +173,7 @@
       file:
         path: /etc/apt/keyrings
         state: directory
-        mode: '0755'
+        mode: "0755"
 
     - name: Add Docker's official GPG key
       apt_key:
@@ -238,7 +236,6 @@
         - docker.service
         - containerd.service
 
-
 - name: Install Miniconda3
   hosts: servers
   become: yes
@@ -299,7 +296,6 @@
         create: yes
       # become_user: your_normal_user # 如果需要的话，切换到普通用户
 
-
 - name: Install GVM (Go Version Manager)
   hosts: servers
   become: yes
@@ -318,7 +314,6 @@
       environment:
         SHELL: /bin/bash
 
-
 - name: Install Rustup (Rust Toolchain Installer)
   hosts: servers
   become: yes
@@ -332,14 +327,13 @@
         USER: "{{ ansible_user }}"
         HOME: "{{ ansible_env.HOME }}"
 
-
 - name: Configure nftables rules
   hosts: servers
   remote_user: root
   gather_facts: no
   become: yes
   vars:
-    custom_block_ports: [14444, 14445]  # 示例自定义端口列表
+    custom_block_ports: [14444, 14445] # 示例自定义端口列表
 
   tasks:
     - name: Allow local access to database and custom ports
@@ -353,6 +347,24 @@
     - name: Save nftables configuration
       shell: nft list ruleset > /etc/nftables.conf
 
+- name: Configure .vimrc
+  hosts: servers
+  remote_user: root
+  gather_facts: no
+  become: yes
+  tasks:
+    - name: Rename /root/.vimrc to /root/.backup-vimrc
+      command: mv /root/.vimrc /root/.backup-vimrc
+      args:
+        creates: /root/.backup-vimrc
+
+    - name: Copy .vimrc.j2 to remote /root/.vimrc
+      template:
+        src: templates/.vimrc.j2
+        dest: /root/.vimrc
+        owner: root
+        group: root
+        mode: "0644"
 
 - name: Configure and restart fail2ban
   hosts: servers
@@ -371,13 +383,12 @@
         dest: /etc/fail2ban/jail.conf
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
 
     - name: Restart fail2ban service
       systemd:
         name: fail2ban
         state: restarted
-
 
 - name: Final reboot
   hosts: servers
@@ -385,5 +396,5 @@
   gather_facts: no
   become: yes
   tasks:
-  - name: final reboot
-    reboot:
+    - name: final reboot
+      reboot:
