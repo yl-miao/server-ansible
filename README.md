@@ -1,7 +1,8 @@
 # server-ansible
+
 The Ansible Playbook to configure new servers
 
-**目前只支持Debian/Ubuntu (amd64/arm64) !**
+**目前只支持 Debian/Ubuntu (amd64/arm64) !**
 
 tested on Debian 12 (amd64) and Ubuntu 22.04 (arm64)
 
@@ -9,12 +10,12 @@ tested on Debian 12 (amd64) and Ubuntu 22.04 (arm64)
 
 It does the following:
 
-* enable BBR
-* update and install common packages (use fnm instead of nvm, use nftables instead of iptables, use iproute2 instead of net-tools)
-* install Caddy V2 (as Web Server), [rustup](https://www.rust-lang.org/tools/install), [gvm](https://github.com/moovweb/gvm) (Go version manager), [fnm](https://github.com/Schniz/fnm) (Node.js version manager), Minconda3, Docker CE
-* install and configure nftables and fail2ban (ufw and iptables will be removed if they exist)
-* block the ports 3306, 5432, 27017, and custom ports
-
+- enable BBR
+- update and install common packages (use fnm instead of nvm, use nftables instead of iptables, use iproute2 instead of net-tools)
+- install Caddy V2 (as Web Server), [rustup](https://www.rust-lang.org/tools/install), [gvm](https://github.com/moovweb/gvm) (Go version manager), [fnm](https://github.com/Schniz/fnm) (Node.js version manager), Minconda3, Docker CE
+- install and configure nftables and fail2ban (ufw and iptables will be removed if they exist)
+- configure vim
+- block the ports 3306, 5432, 27017, and custom ports
 
 ### 1. Run the playbook:
 
@@ -29,7 +30,6 @@ or
 ansible-playbook server.yaml -e "custom_block_ports=[12345, 23456]"
 ```
 
-
 ### 2.检查:
 
 ```bash
@@ -39,13 +39,14 @@ tail -f /var/log/fail2ban.log
 nft list ruleset
 ```
 
-手动解封所有fail2ban jail中的IP地址：
+手动解封所有 fail2ban jail 中的 IP 地址：
 
 ```bash
 sudo fail2ban-client unban --all
 ```
 
 只针对解封单独的地址：
+
 ```bash
 sudo fail2ban-client unban <ip-address>
 ```
