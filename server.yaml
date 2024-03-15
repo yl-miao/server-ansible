@@ -36,7 +36,7 @@
 - name: install softwares
   hosts: servers
   remote_user: root
-  # gather_facts: no
+  gather_facts: no
   tasks:
     - name: install softwares
       apt:
@@ -99,6 +99,7 @@
 - name: Disable and Remove Firewall
   hosts: servers
   become: yes
+  gather_facts: no
   vars:
     packages_to_remove: ["ufw", "iptables","iptables-persistent"]
 
@@ -125,22 +126,22 @@
       ignore_errors: true
       changed_when: false
 
-    - name: Flush iptables rules
-      iptables:
-        flush: yes
-      when: iptables_installed.rc == 0 and ansible_os_family == "Debian"
-
-    - name: Save iptables rules
-      ansible.builtin.command:
-        cmd: netfilter-persistent save
-      when: iptables_installed.rc == 0 and ansible_os_family == "Debian"
+#    - name: Flush iptables rules
+#      iptables:
+#        flush: yes
+#      when: iptables_installed.rc == 0 and ansible_os_family == "Debian"
+#
+#    - name: Save iptables rules
+#      ansible.builtin.command:
+#        cmd: netfilter-persistent save
+#      when: iptables_installed.rc == 0 and ansible_os_family == "Debian"
 
     - name: Uninstall UFW and iptables packages
       apt:
         name: "{{ packages_to_remove }}"
         state: absent
         purge: yes
-      when: ufw_installed.rc == 0 or iptables_installed.rc == 0
+#      when: ufw_installed.rc == 0 or iptables_installed.rc == 0
 
 
 - name: Install Docker
@@ -301,6 +302,7 @@
 - name: Install fnm (Fast Node Manager) conditionally
   hosts: servers
   become: yes
+  gather_facts: yes
   tasks:
     - name: Check if fnm is installed
       command: test -f /root/.local/share/fnm/fnm
@@ -330,6 +332,7 @@
 - name: Install GVM (Go Version Manager) conditionally
   hosts: servers
   become: yes
+  gather_facts: no
   tasks:
     - name: Check if GVM is already installed
       shell: test -d /root/.gvm
@@ -362,6 +365,7 @@
 - name: Install Rustup (Rust Toolchain Installer) conditionally
   hosts: servers
   become: yes
+  gather_facts: yes
   tasks:
     - name: Check if Rustup is installed
       command: test -f "{{ ansible_env.HOME }}/.cargo/bin/rustup"
