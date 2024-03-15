@@ -1,0 +1,25 @@
+[sshd]
+# enabled – Determines if the jail is active or not.
+enabled = true
+# port – Specifies the port(s) you want to monitor. Accepts any port number or service name, e.g., “ssh,” “22,” “2200,” etc.
+port    = ssh
+# backend –  Specifies the backend used to get file modification. Since all modern Linux systems rely on systemd’s logging service, >
+backend = systemd
+# maxretry – The number of failed attempts from an IP before it is banned.
+maxretry = 3
+# findtime – The timeframe (in seconds) during which “maxretry” failed logins will lead to a ban. We have specified 300 seconds, i.e>
+findtime = 300
+# bantime – The duration (in seconds) an IP should stay banned. In our case, we have set 3600 seconds, which means that in the next >
+bantime = 3600
+# ignoreip – Allows you to whitelist IP addresses that should be ignored. This ensures that given IP addresses, even if they exceed >
+ignoreip = 127.0.0.1
+# use nftables instead of iptables
+banaction = nftables
+
+# test configs:
+# use log file (!important: no longer needed because fail2ban will directly read log from systemd journal)
+# logpath = /var/log/auth.log
+# 告诉 Fail2Ban 从 journal 中获取 sshd 的日志：
+# journalmatch = _COMM=sshd
+# 使用名为 "sshd" 的过滤器来识别日志中的恶意行为。"sshd" 过滤器是 Fail2Ban 内置的，专门用于识别 SSH 服务的日志：
+# filter = sshd

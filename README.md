@@ -2,7 +2,7 @@
 
 The Ansible Playbook to configure new servers
 
-**目前只支持 Debian/Ubuntu (amd64/arm64) !**
+** For now, this ONLY supports Debian/Ubuntu (amd64/arm64) ! **
 
 tested on Debian 12 (amd64) and Ubuntu 22.04 (arm64)
 
@@ -17,6 +17,34 @@ It does the following:
 - configure vim
 - block the ports 3306, 5432, 27017, and custom ports
 
+### 0. Configure the servers:
+
+first install Ansible: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html
+
+```bash
+ssh-copy-id -p 2222 root@1.1.1.1
+ssh-copy-id -p 2222 root@2.2.2.2
+sudo nano /etc/ansible/hosts
+```
+
+/etc/ansible/hosts:
+
+```bash
+[servers]
+serv1 ansible_host=1.1.1.1 ansible_ssh_port=2222 ansible_user=root
+serv2 ansible_host=2.2.2.2 ansible_ssh_port=2222 ansible_user=root
+
+[web]
+#host1 ansible_host=192.168.1.20 ansible_user=webadmin ansible_ssh_private_key_file=/path/to/webkey
+
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_private_key_file=~/.ssh/id_rsa
+```
+
+and then, to check availability: `ansible all -m ping`
+
+
 ### 1. Run the playbook:
 
 ```bash
@@ -30,28 +58,40 @@ or
 ansible-playbook server.yaml -e "custom_block_ports=[12345, 23456]"
 ```
 
-### 2.检查:
+to start at task:
 
 ```bash
-#检查fail2ban日志:
+ansible-playbook server.yaml --start-at-task="<Your starting task name>"
+```
+
+to force reinstall docker and other softwares even if they exist on the target machine:
+
+```bash
+ansible-playbook server.yaml -e force_reinstalls=true
+```
+
+### 2.Check:
+
+```bash
+#check the log of fail2ban:
 tail -f /var/log/fail2ban.log
-#检查 nftables 规则是否正确应用：
+#check if the nftables rules are used:
 nft list ruleset
 ```
 
-手动解封所有 fail2ban jail 中的 IP 地址：
+Manually unban all IP addresses in the fail2ban jail：
 
 ```bash
 sudo fail2ban-client unban --all
 ```
 
-只针对解封单独的地址：
+Only unban certain address:
 
 ```bash
 sudo fail2ban-client unban <ip-address>
 ```
 
-fail2ban-client 命令还有许多其他选项，提供了很多可能性和灵活性。详细了解它们，[look here](https://manpages.debian.org/testing/fail2ban/fail2ban-client.1.en.html)
+fail2ban-client has many other options，provides a lot of possibilities and flexibilities. To learn more，[look here](https://manpages.debian.org/testing/fail2ban/fail2ban-client.1.en.html)
 
 ### 3.References:
 

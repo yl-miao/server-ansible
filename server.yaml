@@ -32,52 +32,6 @@
       when: reboot_required_file.stat.exists == true
       ignore_errors: yes
 
-- name: Disable and Remove Firewall
-  hosts: your_server_group
-  become: yes
-  vars:
-    packages_to_remove: ["ufw", "iptables"]
-
-  tasks:
-    - name: Check if UFW is installed
-      command: which ufw
-      register: ufw_installed
-      ignore_errors: true
-
-    - name: Disable and stop UFW
-      command: ufw disable
-      when: ufw_installed.rc == 0
-
-    - name: Stop UFW service
-      systemd:
-        name: ufw
-        state: stopped
-        enabled: no
-      when: ufw_installed.rc == 0
-
-    - name: Flush iptables rules
-      iptables:
-        flush: yes
-      when: ansible_os_family == "Debian"
-
-    - name: Check if iptables is installed
-      command: which iptables
-      register: iptables_installed
-      ignore_errors: true
-
-    - name: Stop iptables service
-      systemd:
-        name: iptables
-        state: stopped
-        enabled: no
-      when: iptables_installed.rc == 0
-
-    - name: Uninstall UFW and iptables packages
-      apt:
-        name: "{{ packages_to_remove }}"
-        state: absent
-        purge: yes
-      when: ufw_installed.rc == 0 or iptables_installed.rc == 0
 
 - name: install softwares
   hosts: servers
@@ -113,6 +67,8 @@
           - iproute2
           - lsof
           - vim
+#          - iptables-persistent
+          - bsdmainutils
         state: latest
 
     - name: Ensure nftables is enabled and started
@@ -139,104 +95,168 @@
         state: latest
         update_cache: yes
 
+
+- name: Disable and Remove Firewall
+  hosts: servers
+  become: yes
+  vars:
+    packages_to_remove: ["ufw", "iptables","iptables-persistent"]
+
+  tasks:
+    - name: Check if UFW is installed
+      command: which ufw
+      register: ufw_installed
+      ignore_errors: true
+
+    - name: Disable and stop UFW
+      command: ufw disable
+      when: ufw_installed.rc == 0
+
+    - name: Stop UFW service
+      systemd:
+        name: ufw
+        state: stopped
+        enabled: no
+      when: ufw_installed.rc == 0
+
+    - name: Check if iptables is installed
+      command: which iptables
+      register: iptables_installed
+      ignore_errors: true
+      changed_when: false
+
+    - name: Flush iptables rules
+      iptables:
+        flush: yes
+      when: iptables_installed.rc == 0 and ansible_os_family == "Debian"
+
+    - name: Save iptables rules
+      ansible.builtin.command:
+        cmd: netfilter-persistent save
+      when: iptables_installed.rc == 0 and ansible_os_family == "Debian"
+
+    - name: Uninstall UFW and iptables packages
+      apt:
+        name: "{{ packages_to_remove }}"
+        state: absent
+        purge: yes
+      when: ufw_installed.rc == 0 or iptables_installed.rc == 0
+
+
 - name: Install Docker
   hosts: servers
   gather_facts: yes
-  become: yes # 使用 sudo
+  become: yes
   vars:
-    arch_mapping: # Map ansible architecture {{ ansible_architecture }} names to Docker's architecture names
+    arch_mapping:
       x86_64: amd64
       aarch64: arm64
   tasks:
-    - name: Uninstall unofficial packages
-      apt:
-        name: "{{ item }}"
-        state: absent
-      loop:
-        - docker.io
-        - docker-doc
-        - docker-compose
-        - podman-docker
-        - containerd
-        - runc
+#    - name: Check if Docker is already installed
+#      command: docker --version
+#      register: docker_installed
+#      failed_when: false
+#      changed_when: false
+    - name: Check if Docker daemon is already installed
+      command: which dockerd
+      register: docker_daemon_installed
+      failed_when: false
+      changed_when: false
 
-    - name: Update apt cache and install necessary packages
-      apt:
-        update_cache: yes
-        name:
-          - ca-certificates
-          - curl
-          - gnupg
-        state: present
+    - name: Set proceed_with_reinstallation fact
+      set_fact:
+        proceed_with_reinstallation: "{{ force_reinstalls | default('false') | bool or docker_daemon_installed.rc != 0 }}"
 
-    - name: Ensure /etc/apt/keyrings directory exists
-      file:
-        path: /etc/apt/keyrings
-        state: directory
-        mode: "0755"
+    - block:
+        - name: Uninstall unofficial packages
+          apt:
+            name: "{{ item }}"
+            state: absent
+          loop:
+            - docker.io
+            - docker-doc
+            - docker-compose
+            - docker-compose-v2
+            - podman-docker
+            - containerd
+            - runc
 
-    - name: Add Docker's official GPG key
-      apt_key:
-        url: https://download.docker.com/linux/{{ ansible_distribution|lower }}/gpg
-        state: present
-        keyring: /etc/apt/keyrings/docker.gpg
+        - name: Update apt cache and install necessary packages
+          apt:
+            update_cache: yes
+            name:
+              - ca-certificates
+              - curl
+              - gnupg
+            state: present
 
-    - name: Print architecture variables
-      debug:
-        msg: "Architecture: {{ ansible_architecture }}, Codename: {{ ansible_lsb.codename }}"
+        - name: Ensure /etc/apt/keyrings directory exists
+          file:
+            path: /etc/apt/keyrings
+            state: directory
+            mode: "0755"
 
-    - name: Check if Docker repository exists
-      ansible.builtin.stat:
-        path: /etc/apt/sources.list.d/docker.list
-      register: docker_repo_file
+        - name: Add Docker's official GPG key
+          apt_key:
+            url: https://download.docker.com/linux/{{ ansible_distribution|lower }}/gpg
+            state: present
+            keyring: /etc/apt/keyrings/docker.gpg
 
-    - name: Add Docker repository
-      ansible.builtin.apt_repository:
-        repo: >-
-          deb [arch={{ arch_mapping[ansible_architecture] | default(ansible_architecture) }}
-          signed-by=/etc/apt/keyrings/docker.gpg]
-          https://download.docker.com/linux/{{ ansible_distribution|lower }} {{ ansible_lsb.codename }} stable
-        filename: docker
-        state: present
-      when: not docker_repo_file.stat.exists
+        - name: Print architecture variables
+          debug:
+            msg: "Architecture: {{ ansible_architecture }}, Codename: {{ ansible_lsb.codename }}"
 
-    - name: Update apt cache after adding Docker repository
-      apt:
-        update_cache: yes
-      when: not docker_repo_file.stat.exists
+        - name: Check if Docker repository exists
+          ansible.builtin.stat:
+            path: /etc/apt/sources.list.d/docker.list
+          register: docker_repo_file
 
-    - name: Install Docker CE and related packages
-      apt:
-        name:
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
-          - docker-buildx-plugin
-          - docker-compose-plugin
-        state: latest
-        update_cache: yes
+        - name: Add Docker repository
+          ansible.builtin.apt_repository:
+            repo: "deb [arch={{ arch_mapping[ansible_architecture] | default(ansible_architecture) }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/{{ ansible_distribution|lower }} {{ ansible_lsb.codename }} stable"
+            filename: docker
+            state: present
+          when: not docker_repo_file.stat.exists
 
-    - name: Add Docker group
-      group:
-        name: docker
-        state: present
+        - name: Update apt cache after adding Docker repository
+          apt:
+            update_cache: yes
+          when: not docker_repo_file.stat.exists
 
-    - name: Add user to Docker group
-      user:
-        name: "{{ ansible_user }}"
-        groups: docker
-        append: true
+        - name: Install Docker CE and related packages
+          apt:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - containerd.io
+              - docker-buildx-plugin
+              - docker-compose-plugin
+            state: latest
+            update_cache: yes
 
-    - name: Enable and start Docker services
-      systemd:
-        name: "{{ item }}"
-        enabled: true
-        state: started
-      loop:
-        - docker.service
-        - containerd.service
+        - name: Add Docker group
+          group:
+            name: docker
+            state: present
 
-- name: Install Miniconda3
+        - name: Add user to Docker group
+          user:
+            name: "{{ ansible_user }}"
+            groups: docker
+            append: true
+
+        - name: Enable and start Docker services
+          systemd:
+            name: "{{ item }}"
+            enabled: true
+            state: started
+          loop:
+            - docker.service
+            - containerd.service
+      when: proceed_with_reinstallation
+
+
+- name: Install Miniconda3 conditionally
   hosts: servers
   become: yes
   gather_facts: yes
@@ -244,88 +264,126 @@
     miniconda_base_url: "https://repo.anaconda.com/miniconda"
     miniconda_installer: "Miniconda3-latest-Linux-{{ ansible_architecture }}.sh"
   tasks:
-    - name: Print the architecture of the target host
-      debug:
-        var: ansible_architecture
+    - name: Check if Miniconda3 is installed
+      command: test -d /opt/miniconda3
+      register: miniconda_installed
+      failed_when: false
+      changed_when: false
 
-    - name: Download Miniconda3 installer for the respective architecture
-      get_url:
-        url: "{{ miniconda_base_url }}/{{ miniconda_installer }}"
-        dest: "/tmp/{{ miniconda_installer }}"
-        mode: 0755
+    - name: Set proceed_with_reinstallation fact for Miniconda3
+      set_fact:
+        proceed_with_reinstallation_miniconda: "{{ force_reinstalls | default('false') | bool or miniconda_installed.rc != 0 }}"
 
-    - name: Install Miniconda3
-      shell: bash /tmp/{{ miniconda_installer }} -b -p /opt/miniconda3
-      args:
-        creates: /opt/miniconda3
+    - block:
+        - name: Download Miniconda3 installer for the respective architecture
+          get_url:
+            url: "{{ miniconda_base_url }}/{{ miniconda_installer }}"
+            dest: "/tmp/{{ miniconda_installer }}"
+            mode: 0755
 
-    - name: Set miniconda3 path to bashrc
-      lineinfile:
-        path: ~/.bashrc
-        line: 'export PATH="/opt/miniconda3/bin:$PATH"'
-        create: yes
+        - name: Install Miniconda3
+          shell: bash /tmp/{{ miniconda_installer }} -b -p /opt/miniconda3
+          args:
+            creates: /opt/miniconda3
 
-    - name: Configure Miniconda to not activate base environment on start
-      shell: /opt/miniconda3/bin/conda config --set auto_activate_base false
+        - name: Set miniconda3 path to bashrc
+          lineinfile:
+            path: ~/.bashrc
+            line: 'export PATH="/opt/miniconda3/bin:$PATH"'
+            create: yes
 
-# - name: Install nvm
-#   hosts: servers
-#   become: yes
-#   tasks:
-#     - name: Download and install nvm
-#       ansible.builtin.shell: >
-#         curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-#       args:
-#         creates: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+        - name: Configure Miniconda to not activate base environment on start
+          shell: /opt/miniconda3/bin/conda config --set auto_activate_base false
+      when: proceed_with_reinstallation_miniconda
 
-- name: Install fnm (Fast Node Manager)
+
+# Repeat the pattern for fnm, GVM, and Rustup installation blocks
+- name: Install fnm (Fast Node Manager) conditionally
   hosts: servers
   become: yes
   tasks:
-    - name: Download and install fnm
-      shell: |
-        curl -fsSL https://github.com/Schniz/fnm/raw/master/.ci/install.sh | bash
-      args:
-        creates: /usr/local/bin/fnm
-      # become_user: your_normal_user # 如果需要的话，切换到普通用户
+    - name: Check if fnm is installed
+      command: test -f /root/.local/share/fnm/fnm
+      register: fnm_installed
+      failed_when: false
+      changed_when: false
 
-    - name: Add fnm init script to shell configuration
-      lineinfile:
-        path: "{{ ansible_env.HOME }}/.bashrc"
-        line: 'eval "$(fnm env)"'
-        create: yes
-      # become_user: your_normal_user # 如果需要的话，切换到普通用户
+    - name: Set proceed_with_reinstallation fact for fnm
+      set_fact:
+        proceed_with_reinstallation_fnm: "{{ force_reinstalls | default('false') | bool or fnm_installed.rc != 0 }}"
 
-- name: Install GVM (Go Version Manager)
+    - block:
+        - name: Download and install fnm
+          shell: |
+            curl -fsSL https://github.com/Schniz/fnm/raw/master/.ci/install.sh | bash
+          args:
+            creates: /usr/local/bin/fnm
+
+        - name: Add fnm init script to shell configuration
+          lineinfile:
+            path: "{{ ansible_env.HOME }}/.bashrc"
+            line: 'eval "$(fnm env)"'
+            create: yes
+      when: proceed_with_reinstallation_fnm
+
+
+- name: Install GVM (Go Version Manager) conditionally
   hosts: servers
   become: yes
   tasks:
-    - name: Install Bison
-      apt:
-        name: bison
-        state: present
-      when: ansible_os_family == "Debian"
+    - name: Check if GVM is already installed
+      shell: test -d /root/.gvm
+      register: gvm_installed
+      ignore_errors: true
+      failed_when: false
+      changed_when: false
 
-    - name: Install GVM
-      shell: |
-        curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer | bash
-      args:
-        executable: /bin/bash
-      environment:
-        SHELL: /bin/bash
+    - name: Set proceed_with_reinstallation fact for GVM
+      set_fact:
+        proceed_with_reinstallation_gvm: "{{ force_reinstalls | default('false') | bool or gvm_installed.rc != 0 }}"
 
-- name: Install Rustup (Rust Toolchain Installer)
+    - block:
+        - name: Install Bison
+          apt:
+            name: bison
+            state: present
+          when: ansible_os_family == "Debian"
+
+        - name: Remove existing GVM installation
+          file:
+            path: /root/.gvm
+            state: absent
+
+        - name: Install GVM
+          shell: curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer | bash
+      when: proceed_with_reinstallation_gvm
+
+
+- name: Install Rustup (Rust Toolchain Installer) conditionally
   hosts: servers
   become: yes
   tasks:
-    - name: Install Rustup
-      shell: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-      args:
-        executable: /bin/bash
-      environment:
-        USER: "{{ ansible_user }}"
-        HOME: "{{ ansible_env.HOME }}"
+    - name: Check if Rustup is installed
+      command: test -f "{{ ansible_env.HOME }}/.cargo/bin/rustup"
+      register: rustup_installed
+      failed_when: false
+      changed_when: false
+
+    - name: Set proceed_with_reinstallation fact for Rustup
+      set_fact:
+        proceed_with_reinstallation_rustup: "{{ force_reinstalls | default('false') | bool or rustup_installed.rc != 0 }}"
+
+    - block:
+        - name: Install Rustup
+          shell: |
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          args:
+            executable: /bin/bash
+          environment:
+            USER: "{{ ansible_user }}"
+            HOME: "{{ ansible_env.HOME }}"
+      when: proceed_with_reinstallation_rustup
+
 
 - name: Configure nftables rules
   hosts: servers
@@ -347,6 +405,7 @@
     - name: Save nftables configuration
       shell: nft list ruleset > /etc/nftables.conf
 
+
 - name: Configure .vimrc
   hosts: servers
   remote_user: root
@@ -356,7 +415,9 @@
     - name: Rename /root/.vimrc to /root/.backup-vimrc
       command: mv /root/.vimrc /root/.backup-vimrc
       args:
-        creates: /root/.backup-vimrc
+        creates: /root/.backup-vimrc # 这个参数确保命令只在目标文件不存在时执行
+      ignore_errors: true # 如果文件不存在，忽略错误
+      changed_when: false # 除非实际进行了移动操作，否则不标记为 changed
 
     - name: Copy .vimrc.j2 to remote /root/.vimrc
       template:
@@ -366,29 +427,37 @@
         group: root
         mode: "0644"
 
+
 - name: Configure and restart fail2ban
   hosts: servers
   remote_user: root
   gather_facts: no
   become: yes
   tasks:
-    - name: Rename /etc/fail2ban/jail.conf to /etc/fail2ban/jail.local
-      command: mv /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
-      args:
-        creates: /etc/fail2ban/jail.local
+    - name: Ensure the backup file is absent before moving
+      file:
+        path: /etc/fail2ban/jail.local.backup
+        state: absent
 
-    - name: Copy jail.conf.j2 to remote /etc/fail2ban/jail.conf
+    - name: Move /etc/fail2ban/jail.local to /etc/fail2ban/jail.local.backup
+      command: mv /etc/fail2ban/jail.local /etc/fail2ban/jail.local.backup
+      args:
+        removes: /etc/fail2ban/jail.local
+
+    - name: Copy jail.local.j2 to remote /etc/fail2ban/jail.local
       template:
-        src: templates/jail.conf.j2
-        dest: /etc/fail2ban/jail.conf
+        src: templates/jail.local.j2
+        dest: /etc/fail2ban/jail.local
         owner: root
         group: root
         mode: "0644"
 
-    - name: Restart fail2ban service
+    - name: Restart and enable fail2ban service
       systemd:
         name: fail2ban
         state: restarted
+        enabled: yes
+
 
 - name: Final reboot
   hosts: servers
