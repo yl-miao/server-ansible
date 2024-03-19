@@ -2,9 +2,9 @@
 
 The Ansible Playbook to configure new servers
 
-** For now, this ONLY supports Debian/Ubuntu (amd64/arm64) ! **
+**For now, this ONLY supports Debian/Ubuntu (amd64/arm64)!**
 
-tested on Debian 12 (amd64) and Ubuntu 22.04 (arm64)
+tested on Debian 12 (amd64) and Ubuntu 22.04 (amd64 and arm64)
 
 ### 0. Overview
 
@@ -19,7 +19,17 @@ It does the following:
 
 ### 0. Configure the servers:
 
-first install Ansible: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html
+
+First, clone my repo:
+
+```bash
+git clone https://github.com/yl-miao/server-ansible
+cd server-ansible
+```
+
+then, install Ansible: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html
+
+then, copy your SSH keys to the servers that you want to set up:
 
 ```bash
 ssh-copy-id -p 2222 root@1.1.1.1
@@ -27,7 +37,7 @@ ssh-copy-id -p 2222 root@2.2.2.2
 sudo nano /etc/ansible/hosts
 ```
 
-/etc/ansible/hosts:
+Then, edit ansible hosts file `sudo vim /etc/ansible/hosts`:
 
 ```bash
 [servers]
@@ -46,6 +56,8 @@ and then, to check availability: `ansible all -m ping`
 
 
 ### 1. Run the playbook:
+
+To run the playbook:
 
 ```bash
 # ansible-galaxy role install andrewrothstein.miniconda
