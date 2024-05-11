@@ -4,7 +4,7 @@ The Ansible Playbook to configure new servers
 
 **For now, this ONLY supports Debian/Ubuntu (amd64/arm64)!**
 
-tested on Debian 12 (amd64) and Ubuntu 22.04 (amd64 and arm64)
+tested on Debian 11 & 12 (amd64) and Ubuntu 22.04 & 24.04 (amd64 and arm64)
 
 ### 0. Overview
 
@@ -49,7 +49,7 @@ serv2 ansible_host=2.2.2.2 ansible_ssh_port=2222 ansible_user=root
 
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3
-ansible_ssh_private_key_file=~/.ssh/id_rsa
+ansible_ssh_private_key_file=~/.ssh/id_ed25519
 ```
 
 and then, to check availability: `ansible all -m ping`
