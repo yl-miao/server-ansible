@@ -69,6 +69,7 @@
           - vim
 #          - iptables-persistent
           - bsdmainutils
+          - cron
         state: latest
 
     - name: Ensure nftables is enabled and started
